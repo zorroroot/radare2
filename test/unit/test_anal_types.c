@@ -27,6 +27,18 @@ static void setup_sdb_for_enum(Sdb *res) {
 	sdb_set (res, "enum.foo.secondCase", "0x2", 0);
 }
 
+static void setup_sdb_for_typedef(Sdb *res) {
+	// td typedef char *string;
+	sdb_set (res, "string", "typedef", 0);
+	sdb_set (res, "typedef.string", "char *", 0);
+}
+
+static void setup_sdb_for_atomic(Sdb *res) {
+	sdb_set (res, "char", "type", 0);
+	sdb_set (res, "type.char.size", "8", 0);
+	sdb_set (res, "type.char", "c", 0);
+}
+
 static void setup_sdb_for_not_found(Sdb *res) {
 	// malformed type states
 	sdb_set (res, "foo", "enum", 0);
@@ -53,6 +65,7 @@ static bool test_anal_get_base_type_struct(void) {
 	mu_assert_notnull (base, "Couldn't create get base type of struct \"kappa\"");
 
 	mu_assert_eq (R_ANAL_BASE_TYPE_KIND_STRUCT, base->kind, "Wrong base type");
+	mu_assert_streq (base->name, "kappa", "type name");
 
 	RAnalStructMember *member;
 
@@ -82,6 +95,7 @@ static bool test_anal_get_base_type_union(void) {
 	mu_assert_notnull (base, "Couldn't create get base type of union \"kappa\"");
 
 	mu_assert_eq (R_ANAL_BASE_TYPE_KIND_UNION, base->kind, "Wrong base type");
+	mu_assert_streq (base->name, "kappa", "type name");
 
 	RAnalUnionMember *member;
 
@@ -109,6 +123,7 @@ static bool test_anal_get_base_type_enum(void) {
 	mu_assert_notnull (base, "Couldn't create get base type of enum \"foo\"");
 
 	mu_assert_eq (R_ANAL_BASE_TYPE_KIND_ENUM, base->kind, "Wrong base type");
+	mu_assert_streq (base->name, "foo", "type name");
 
 	RAnalEnumCase *cas;
 
@@ -119,6 +134,45 @@ static bool test_anal_get_base_type_enum(void) {
 	cas = r_vector_index_ptr (&base->enum_data.cases, 1);
 	mu_assert_eq (cas->val, 2, "Incorrect value for enum case");
 	mu_assert_streq (cas->name, "secondCase", "Incorrect name for enum case");
+
+	r_anal_base_type_free (base);
+	r_anal_free (anal);
+	mu_end;
+}
+
+static bool test_anal_get_base_type_typedef(void) {
+	RAnal *anal = r_anal_new ();
+	mu_assert_notnull (anal, "Couldn't create new RAnal");
+	mu_assert_notnull (anal->sdb_types, "Couldn't create new RAnal.sdb_types");
+
+	setup_sdb_for_typedef (anal->sdb_types);
+
+	RAnalBaseType *base = r_anal_get_base_type (anal, "string");
+	mu_assert_notnull (base, "Couldn't create get base type of typedef \"string\"");
+
+	mu_assert_eq (R_ANAL_BASE_TYPE_KIND_TYPEDEF, base->kind, "Wrong base type");
+	mu_assert_streq (base->name, "string", "type name");
+	mu_assert_streq (base->type, "char *", "typedefd type");
+
+	r_anal_base_type_free (base);
+	r_anal_free (anal);
+	mu_end;
+}
+
+static bool test_anal_get_base_type_atomic(void) {
+	RAnal *anal = r_anal_new ();
+	mu_assert_notnull (anal, "Couldn't create new RAnal");
+	mu_assert_notnull (anal->sdb_types, "Couldn't create new RAnal.sdb_types");
+
+	setup_sdb_for_atomic (anal->sdb_types);
+
+	RAnalBaseType *base = r_anal_get_base_type (anal, "char");
+	mu_assert_notnull (base, "Couldn't create get base type of atomic type \"char\"");
+
+	mu_assert_eq (R_ANAL_BASE_TYPE_KIND_ATOMIC, base->kind, "Wrong base type");
+	mu_assert_streq (base->name, "char", "type name");
+	mu_assert_streq (base->type, "c", "atomic type type");
+	mu_assert_eq (base->size, 8, "atomic type size");
 
 	r_anal_base_type_free (base);
 	r_anal_free (anal);
@@ -151,6 +205,8 @@ int all_tests(void) {
 	mu_run_test (test_anal_get_base_type_struct);
 	mu_run_test (test_anal_get_base_type_union);
 	mu_run_test (test_anal_get_base_type_enum);
+	mu_run_test (test_anal_get_base_type_typedef);
+	mu_run_test (test_anal_get_base_type_atomic);
 	mu_run_test (test_anal_get_base_type_not_found);
 	return tests_passed != tests_run;
 }
