@@ -84,6 +84,35 @@ static bool test_anal_get_base_type_struct(void) {
 	mu_end;
 }
 
+static bool test_anal_set_base_type_struct(void) {
+	RAnal *anal = r_anal_new ();
+	mu_assert_notnull (anal, "Couldn't create new RAnal");
+	mu_assert_notnull (anal->sdb_types, "Couldn't create new RAnal.sdb_types");
+
+	RAnalBaseType *base = r_anal_base_type_new (R_ANAL_BASE_TYPE_KIND_STRUCT);
+	base->name = strdup ("kappa");
+
+	RAnalStructMember member;
+	member.offset = 0;
+	member.type = strdup ("int32_t");
+	member.name = strdup ("bar");
+	r_vector_push (&base->struct_data.members, &member);
+
+	member.offset = 4;
+	member.type = strdup ("int32_t");
+	member.name = strdup ("cow");
+	r_vector_push (&base->struct_data.members, &member);
+
+	Sdb *reg = sdb_new0();
+	setup_sdb_for_struct (anal->sdb_types);
+	mu_assert ("set struct type", sdb_diff (anal->sdb_types, reg, NULL, NULL));
+	sdb_free (reg);
+
+	r_anal_base_type_free (base);
+	r_anal_free (anal);
+	mu_end;
+}
+
 static bool test_anal_get_base_type_union(void) {
 	RAnal *anal = r_anal_new ();
 	mu_assert_notnull (anal, "Couldn't create new RAnal");
@@ -181,7 +210,7 @@ static bool test_anal_get_base_type_atomic(void) {
 
 static bool test_anal_get_base_type_not_found(void) {
 	RAnal *anal = r_anal_new ();
-	setup_sdb_for_not_found(anal->sdb_types);
+	setup_sdb_for_not_found (anal->sdb_types);
 
 	mu_assert_notnull (anal, "Couldn't create new RAnal");
 	mu_assert_notnull (anal->sdb_types, "Couldn't create new RAnal.sdb_types");
@@ -203,6 +232,7 @@ static bool test_anal_get_base_type_not_found(void) {
 
 int all_tests(void) {
 	mu_run_test (test_anal_get_base_type_struct);
+	mu_run_test (test_anal_set_base_type_struct);
 	mu_run_test (test_anal_get_base_type_union);
 	mu_run_test (test_anal_get_base_type_enum);
 	mu_run_test (test_anal_get_base_type_typedef);
